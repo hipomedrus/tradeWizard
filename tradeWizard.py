@@ -1,3 +1,5 @@
+# TradeWizard: Spot ve vadeli işlemler için kâr/zarar, risk ve finansman analizleri yapar.
+# TradeWizard performs PnL, risk and funding analysis for spot and futures trades.
 import streamlit as st
 
 # =======================
@@ -37,7 +39,7 @@ def calculate_futures(entry_price: float, position_type: str,
     position_size = margin * leverage
 
     # PnL calculations
-    if position_type.lower() == 'long':
+    if position_type.lower().startswith('long'):
         pnl_sl = (sl_price - entry_price) * position_size / entry_price
         pnl_tp = (tp_price - entry_price) * position_size / entry_price
         liquidation_price = entry_price * (1 - 1 / leverage) if leverage != 0 else 0
@@ -57,11 +59,11 @@ def calculate_futures(entry_price: float, position_type: str,
 
     # Costs
     funding_cost = position_size * funding_rate * funding_hours
-    commission_cost = position_size * fee_rate * 2
+    commission_cost = position_size * fee_rate  # single side commission
 
     # Scenario PnL
-    total_pnl_sl = pnl_sl - commission_cost - funding_cost
-    total_pnl_tp = pnl_tp - commission_cost - funding_cost
+    net_pnl_sl = pnl_sl - commission_cost - funding_cost
+    net_pnl_tp = pnl_tp - commission_cost - funding_cost
 
     # Return on Equity
     roe = (pnl_tp / margin) * 100 if margin != 0 else 0
@@ -75,11 +77,10 @@ def calculate_futures(entry_price: float, position_type: str,
         'suggested_size': suggested_size,
         'funding_cost': funding_cost,
         'commission_cost': commission_cost,
-        'total_pnl_sl': total_pnl_sl,
-        'total_pnl_tp': total_pnl_tp,
+        'net_pnl_sl': net_pnl_sl,
+        'net_pnl_tp': net_pnl_tp,
         'roe': roe
     }
-
 
 # =======================
 # Streamlit App
@@ -104,62 +105,44 @@ def main():
     # 1) Market Type
     with st.expander("1) Piyasa Türü / Market Type", expanded=True):
         market_type = st.radio(
-            "Seçiniz:",
-            ["Spot", "Vadeli/Futures"],
-            index=0,
+            "Seçiniz:", ["Spot", "Vadeli/Futures"], index=0,
             help="Spot: doğrudan alım/satım; Vadeli/Futures: kaldıraçlı pozisyon."
         )
 
     # 2) İşlem Bilgileri / Trade Details
     with st.expander("2) İşlem Bilgileri / Trade Details", expanded=True):
         if market_type == "Spot":
-            buy_price = st.number_input("Alım fiyatı (Buy Price)", min_value=0.0, step=0.10, format="%.8f",
-                                       help="Varlığı alacağınız birim fiyat.")
-            quantity = st.number_input("Miktar (Quantity)", min_value=0.0, step=0.10, format="%.8f",
-                                       help="Alım için gireceğiniz miktar.")
-            sell_price = st.number_input("Satış fiyatı (Sell Price)", min_value=0.0, step=0.10, format="%.8f",
-                                        help="Varlığı satacağınız birim fiyat.")
+            buy_price = st.number_input("Alım fiyatı (Buy Price)", min_value=0.0, step=0.10, format="%.8f")
+            quantity = st.number_input("Miktar (Quantity)", min_value=0.0, step=0.10, format="%.8f")
+            sell_price = st.number_input("Satış fiyatı (Sell Price)", min_value=0.0, step=0.10, format="%.8f")
         else:
-            entry_price = st.number_input("Giriş fiyatı (Entry Price)", min_value=0.0, step=0.10, format="%.8f",
-                                        help="Pozisyona giriş yapacağınız fiyat.")
-            position_type = st.selectbox("Pozisyon Yönü (Position Type)", ["Long (Buy)", "Short (Sell)"],
-                                        help="Long: yükseliş; Short: düşüş yönlü pozisyon.")
-            margin = st.number_input("Teminat (Collateral)", min_value=0.0, step=0.10, format="%.2f",
-                                     help="Pozisyon açmak için yatırdığınız tutar.")
-            leverage = st.number_input("Kaldıraç (Leverage)", min_value=1, max_value=1000, step=1, format="%d", value=1,
-                                        help="Pozisyonda kullandığınız kaldıraç çarpanı.")
+            entry_price = st.number_input("Giriş fiyatı (Entry Price)", min_value=0.0, step=0.10, format="%.8f")
+            position_type = st.selectbox("Pozisyon Yönü (Position Type)", ["Long (Buy)", "Short (Sell)"])
+            margin = st.number_input("Teminat (Collateral)", min_value=0.0, step=0.10, format="%.2f")
+            leverage = st.number_input("Kaldıraç (Leverage)", min_value=1, max_value=1000, step=1, format="%d", value=1)
 
     # 3) Komisyon ve ek maliyetler / Commission & Additional Costs
     with st.expander("3) Komisyon ve ek maliyetler / Commission & Additional Costs", expanded=False):
         if market_type == "Spot":
-            buy_fee_percent = st.number_input("Alım komisyon oranı (%) (Buy Fee %)", min_value=0.0, step=0.0001, format="%.4f",
-                                             help="Alım işlemi için alınan komisyon yüzdesi.")
-            sell_fee_percent = st.number_input("Satış komisyon oranı (%) (Sell Fee %)", min_value=0.0, step=0.0001, format="%.4f",
-                                              help="Satış işlemi için alınan komisyon yüzdesi.")
+            buy_fee_percent = st.number_input("Alım komisyon oranı (%) (Buy Fee %)", min_value=0.0, step=0.0001, format="%.4f")
+            sell_fee_percent = st.number_input("Satış komisyon oranı (%) (Sell Fee %)", min_value=0.0, step=0.0001, format="%.4f")
             buy_fee_rate = buy_fee_percent / 100
             sell_fee_rate = sell_fee_percent / 100
         else:
-            fee_percent = st.number_input("Komisyon oranı (%) (Fee %)", min_value=0.0, step=0.0001, format="%.4f",
-                                         help="Pozisyon açıp kapatma işlemindeki toplam komisyon yüzdesi.")
+            fee_percent = st.number_input("Komisyon oranı (%) (Fee %)", min_value=0.0, step=0.0001, format="%.4f")
             fee_rate = fee_percent / 100
-            funding_percent = st.number_input("Saatlik faiz oranı (%) (Funding Rate %)", min_value=0.0, step=0.0001, format="%.4f",
-                                             help="Açık pozisyonunuz için uygulanan saatlik fonlama/faiz oranı.")
+            funding_percent = st.number_input("Saatlik faiz oranı (%) (Funding Rate %)", min_value=0.0, step=0.0001, format="%.4f")
             funding_rate = funding_percent / 100
-            funding_hours = st.number_input("Pozisyon Süresi (Saat)", min_value=0, step=1, format="%d", value=24,
-                                           help="Pozisyonun açık kalacağı tahmini süre saat olarak.")
+            funding_hours = st.number_input("Pozisyon Süresi (Saat)", min_value=0, step=1, format="%d", value=24)
 
     # 4) Risk Yönetimi / Risk Management (Futures only)
     if market_type == "Vadeli/Futures":
         with st.expander("4) Risk Yönetimi / Risk Management", expanded=False):
-            account_balance = st.number_input("Hesap Bakiyesi (Account Balance)", min_value=0.0, step=1.0, format="%.2f",
-                                             help="Toplam portföy bakiyesi veya kullanılabilir sermaye.")
-            risk_percent_input = st.number_input("Risk oranı (%) (Risk %)", min_value=0.0, max_value=100.0, step=0.50, format="%.2f",
-                                                 help="Portföyden işlem başına riske edilecek yüzde.")
+            account_balance = st.number_input("Hesap Bakiyesi (Account Balance)", min_value=0.0, step=1.0, format="%.2f")
+            risk_percent_input = st.number_input("Risk oranı (%) (Risk %)", min_value=0.0, max_value=100.0, step=0.50, format="%.2f")
             risk_percent = risk_percent_input / 100
-            sl_price = st.number_input("Stop Loss Seviyesi (SL Price)", min_value=0.00, step=0.1000000, format="%.8f",
-                                       help="Pozisyon zararı sınırlandırmak için belirlenen fiyat seviyesi.")
-            tp_price = st.number_input("Take Profit Seviyesi (TP Price)", min_value=0.00, step=0.1000000, format="%.8f",
-                                       help="Pozisyon kârı almak için belirlenen fiyat seviyesi.")
+            sl_price = st.number_input("Stop Loss Seviyesi (SL Price)", min_value=0.00, step=0.1000000, format="%.8f")
+            tp_price = st.number_input("Take Profit Seviyesi (TP Price)", min_value=0.00, step=0.1000000, format="%.8f")
 
     # Calculate Button
     if st.button("Hesapla / Calculate"):
@@ -178,14 +161,14 @@ def main():
             with st.expander("Vadeli Sonuçları", expanded=True):
                 st.write(f"Pozisyon Büyüklüğü: {res['position_size']:.4f}")
                 st.write(f"Likidasyon Fiyatı: {res['liquidation_price']:.8f}")
-                st.write(f"Risk Miktarı: {res['risk_amount']:.4f}")
-                st.write(f"Kazanç: {res['reward_amount']:.4f}")
+                st.write(f"Net PnL (SL): {res['net_pnl_sl']:.4f}")
+                st.write(f"Net PnL (TP): {res['net_pnl_tp']:.4f}")
                 st.write(f"Risk/Ödül: {res['risk_reward_ratio']:.2f}")
                 st.write(f"Önerilen Pozisyon: {res['suggested_size']:.4f}")
                 st.write(f"Ek Maliyet: {res['funding_cost']:.4f}")
                 st.write(f"Komisyon: {res['commission_cost']:.4f}")
-                st.write(f"SL Senaryosu Net: {res['total_pnl_sl']:.4f}")
-                st.write(f"TP Senaryosu Net: {res['total_pnl_tp']:.4f}")
+                st.write(f"SL Senaryosu Net: {res['net_pnl_sl']:.4f}")
+                st.write(f"TP Senaryosu Net: {res['net_pnl_tp']:.4f}")
                 st.write(f"ROE: {res['roe']:.2f}%")
 
 if __name__ == '__main__':
