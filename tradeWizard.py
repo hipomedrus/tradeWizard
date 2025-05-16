@@ -91,43 +91,108 @@ def main():
     st.title("🧙‍♂️ TradeWizard")
 
     # 1) Market Type
-    with st.expander("1) Piyasa Türü", expanded=True):
-        market_type = st.radio("Seçiniz:", ["Spot", "Vadeli/Futures"], index=0)
+    with st.expander("1) Piyasa Türü / Market Type", expanded=True):
+        market_type = st.radio(
+            "Seçiniz:",
+            ["Spot", "Vadeli/Futures"],
+            index=0,
+            help="Spot: doğrudan alım/satım; Vadeli/Futures: kaldıraçlı pozisyon."
+        )
 
-    # 2) Position Details
-    with st.expander("2) Pozisyon Detayları", expanded=True):
+    # 2) Genel Ayarlar / General Settings
+    with st.expander("2) Genel Ayarlar / General Settings", expanded=True):
         if market_type == "Spot":
-            buy_price = st.number_input("Alım fiyatı", min_value=0.0, step=1e-8, format="%.8f")
-            quantity = st.number_input("Miktar", min_value=0.0, step=1e-8, format="%.8f")
-            sell_price = st.number_input("Satış fiyatı", min_value=0.0, step=1e-8, format="%.8f")
+            buy_price = st.number_input(
+                "Alım fiyatı (Buy Price)",
+                min_value=0.0, step=0.10, format="%.8f",
+                help="Varlığı alacağınız birim fiyat."
+            )
+            quantity = st.number_input(
+                "Miktar (Quantity)",
+                min_value=0.0, step=0.10, format="%.8f",
+                help="Alım için gireceğiniz miktar."
+            )
+            sell_price = st.number_input(
+                "Satış fiyatı (Sell Price)",
+                min_value=0.0, step=0.10, format="%.8f",
+                help="Varlığı satacağınız birim fiyat."
+            )
         else:
-            entry_price = st.number_input("Giriş fiyatı", min_value=0.0, step=1e-8, format="%.8f")
-            position_type = st.selectbox("Pozisyon Yönü", ["Long", "Short"])
-            margin = st.number_input("Teminat", min_value=0.0, step=1e-8, format="%.8f")
-            leverage = st.number_input("Kaldıraç", min_value=1, step=1, format="%d", value=1)
+            entry_price = st.number_input(
+                "Giriş fiyatı (Entry Price)",
+                min_value=0.0, step=0.10, format="%.8f",
+                help="Pozisyona giriş yapacağınız fiyat."
+            )
+            position_type = st.selectbox(
+                "Pozisyon Yönü (Position Type)",
+                ["Long (Buy)", "Short (Sell)"],
+                help="Long: yükseliş; Short: düşüş yönlü pozisyon."
+            )
+            margin = st.number_input(
+                "Teminat (Collateral)",
+                min_value=0.0, step=0.10, format="%.2f",
+                help="Pozisyon açmak için yatırdığınız tutar."
+            )
+            leverage = st.number_input(
+                "Kaldıraç (Leverage)",
+                min_value=1, max_value=1000, step=1, format="%d", value=1,
+                help="Pozisyonda kullandığınız kaldıraç çarpanı."
+            )
 
-    # 3) Commission & Funding
-    with st.expander("3) Komisyon & Finansman", expanded=False):
+    # 3) Risk Yönetimi / Risk Management
+    with st.expander("3) Risk Yönetimi / Risk Management", expanded=False):
         if market_type == "Spot":
-            buy_fee_pct = st.number_input("Alım komisyon oranı (%)", min_value=0.0, step=1e-4, format="%.4f")
-            sell_fee_pct = st.number_input("Satış komisyon oranı (%)", min_value=0.0, step=1e-4, format="%.4f")
-            buy_fee_rate = buy_fee_pct / 100
-            sell_fee_rate = sell_fee_pct / 100
+            buy_fee_percent = st.number_input(
+                "Alım komisyon oranı (%) (Buy Fee %)",
+                min_value=0.0, step=0.0001, format="%.4f",
+                help="Alım işlemi için borsa tarafından alınan komisyon yüzdesi."
+            )
+            sell_fee_percent = st.number_input(
+                "Satış komisyon oranı (%) (Sell Fee %)",
+                min_value=0.0, step=0.0001, format="%.4f",
+                help="Satış işlemi için borsa tarafından alınan komisyon yüzdesi."
+            )
+            buy_fee_rate = buy_fee_percent / 100
+            sell_fee_rate = sell_fee_percent / 100
         else:
-            fee_pct = st.number_input("Komisyon oranı (%)", min_value=0.0, step=1e-4, format="%.4f")
-            fee_rate = fee_pct / 100
-            funding_pct = st.number_input("Saatlik faiz oranı (%)", min_value=0.0, step=1e-4, format="%.4f")
-            funding_rate = funding_pct / 100
-            funding_hours = st.number_input("Pozisyon Süresi (Saat)", min_value=1, step=1, format="%d", value=24)
-
-    # 4) Risk Management (Futures only)
-    if market_type == "Vadeli/Futures":
-        with st.expander("4) Risk Yönetimi", expanded=False):
-            account_balance = st.number_input("Hesap Bakiyesi", min_value=0.0, step=1e-8, format="%.8f")
-            risk_pct = st.number_input("Risk oranı (%)", min_value=0.0, max_value=100.0, step=0.01, format="%.2f")
-            risk_percent = risk_pct / 100
-            sl_price = st.number_input("Stop Loss seviyesi", min_value=0.0, step=1e-8, format="%.8f")
-            tp_price = st.number_input("Take Profit seviyesi", min_value=0.0, step=1e-8, format="%.8f")
+            funding_percent = st.number_input(
+                "Saatlik faiz oranı (%) (Funding Rate %)",
+                min_value=0.0, step=0.0001, format="%.4f",
+                help="Açık pozisyonunuz için uygulanan saatlik fonlama/faiz oranı."
+            )
+            funding_rate = funding_percent / 100
+            funding_hours = st.number_input(
+                "Pozisyon Süresi (Saat)",
+                min_value=0, step=1, format="%d", value=24,
+                help="Pozisyonun açık kalacağı tahmini süre saat olarak."
+            )
+            fee_percent = st.number_input(
+                "Komisyon oranı (%) (Fee %)",
+                min_value=0.0, step=0.0001, format="%.4f",
+                help="Pozisyon açıp kapatma işlemindeki toplam komisyon yüzdesi."
+            )
+            fee_rate = fee_percent / 100
+            account_balance = st.number_input(
+                "Hesap Bakiyesi (Account Balance)",
+                min_value=0.00, step=1.0, format="%.2f",
+                help="Toplam portföy bakiyesi veya kullanılabilir sermaye."
+            )
+            risk_percent_input = st.number_input(
+                "Risk oranı (%) (Risk %)",
+                min_value=0.0, max_value=100.0, step=0.50, format="%.2f",
+                help="Portföyden işlem başına riske edilecek yüzde."
+            )
+            risk_percent = risk_percent_input / 100
+            sl_price = st.number_input(
+                "Stop Loss Seviyesi (SL Price)",
+                min_value=0.00, step=0.1000000, format="%.8f",
+                help="Pozisyon zararı sınırlandırmak için belirlenen fiyat seviyesi."
+            )
+            tp_price = st.number_input(
+                "Take Profit Seviyesi (TP Price)",
+                min_value=0.00, step=0.1000000, format="%.8f",
+                help="Pozisyon kârı almak için belirlenen fiyat seviyesi."
+            )
 
     # Calculate Button
     if st.button("Hesapla / Calculate"):
